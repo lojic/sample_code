@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# Copyright 2007-2009 Brian Adkins all rights reserved
+#
 # = Name
 # timeclock.rb
 #
