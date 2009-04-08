@@ -1,3 +1,4 @@
+#!/usr/local/bin/ruby
 # Author: Brian Adkins
 # Date:   2009/04/08
 # Copyright 2009 Brian Adkins - All Rights Reserved
