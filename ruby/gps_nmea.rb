@@ -49,6 +49,8 @@ HOSTNAME   = ""  # Remote host name e.g. foo.com
 REMOTE_DIR = ""  # Remote directory e.g. /var/www/bar
 # --- MODIFY THESE -- #
 
+SLEEP_TIME = 300
+
 port_str  = '/dev/cu.sierra05'
 baud_rate = 9600
 data_bits = 8
@@ -81,26 +83,38 @@ def update_remote_info lat, lon
     tf.puts Time.now.to_s
     tf.puts "#{lat},#{lon}"
   end
-  puts 'Updating remote location info'
+  puts "Updating remote location info: #{lat}, #{lon}"
   `scp #{TEMP_PATH}/#{TEMP_FILE} #{USERNAME}@#{HOSTNAME}:#{REMOTE_DIR}/#{TEMP_FILE}`
   File.delete("#{TEMP_PATH}/#{TEMP_FILE}")
 end
 
-# 99 requests should be sufficient to find a $GPGGA sentence
-99.times do
-  if (str = sp.gets) =~ /^\$GPGGA/
-    fix = str.split(',')
-    if fix[6] == '1'
-      lat = convert_lat(fix[2], fix[3])
-      lon = convert_lon(fix[4], fix[5])
-      if ARGV[0] == 'update-remote'
-        update_remote_info(lat,lon)
-      elsif
-        puts "#{lat}, #{lon}"
+def get_coords serial_port, max_requests=99
+  max_requests.times do
+    if (str = serial_port.gets) =~ /^\$GPGGA/
+      fix = str.split(',')
+      if fix[6] == '1'
+        lat = convert_lat(fix[2], fix[3])
+        lon = convert_lon(fix[4], fix[5])
+        return [lat, lon]
       end
-      exit 0
     end
   end
+  raise 'Invalid data - GPS coordinates not found'
 end
 
-puts "Invalid data - GPS coordinates not found"
+prev_time = nil
+
+if ARGV[0] == 'update-remote'
+  # Loop and perform blocking read to flush the NMEA buffer
+  while true
+    lat, lon = get_coords(sp)
+    if prev_time.nil? || (Time.now - prev_time) > SLEEP_TIME
+      update_remote_info(lat,lon)
+      prev_time = Time.now
+    end
+  end
+else
+  lat, lon = get_coords(sp)
+  puts "#{lat}, #{lon}"
+end
+
