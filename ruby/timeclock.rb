@@ -184,7 +184,8 @@ def parse_file file, options
     unless o
       # o is nil, active interval, use now for second entry
       raise 'expected in entry' unless i.is_start
-      o = TimeEntry.new(false, DateTime.now, nil)
+      # Manually create a Date to avoid having a time zone issue
+      o = TimeEntry.new(false, DateTime.parse(Time.now.strftime("%F %T")), nil)
     end
 
     # We have a complete in/out pair
