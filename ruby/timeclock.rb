@@ -46,7 +46,6 @@
 # 03/05/08
 
 require 'optparse'
-require 'rdoc/usage'
 require 'date'
 
 TimeEntry = Struct.new(:is_start, :time, :description)
@@ -298,7 +297,7 @@ options = {
   :group_levels => 0
 }
 opts = OptionParser.new
-opts.on("-h", "--help")            { RDoc::usage                                 }
+opts.on("-h", "--help")            { puts opts; exit }
 opts.on("-b", "--begin-date DATE") {|d| options[:begin_date] = DateTime.parse(d, true) }
 opts.on("-e", "--end-date DATE")   {|d| options[:end_date]   = DateTime.parse(d, true) }
 opts.on("-s", "--statistics")      { options[:statistics]    = true              }
