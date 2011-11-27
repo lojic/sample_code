@@ -1,4 +1,4 @@
-N = 8
+N = 11
 
 def valid? stack
   q2 = stack.length - 1
@@ -10,7 +10,7 @@ end
 
 def queens stack, n
   if n == N
-    puts "[ #{stack.join(', ')} ]"
+    # puts "[ #{stack.join(', ')} ]"
   else
     (1..N).each do |rank|
       stack.push(rank)

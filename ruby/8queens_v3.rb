@@ -1,5 +1,7 @@
 require 'pp'
 
+N = 11
+
 def push_with_block stack, obj
   stack.push(obj)
   yield stack
@@ -15,10 +17,10 @@ def valid? stack
 end
 
 def queens stack, n
-  if n == 8
+  if n == N
     #pp stack
   else
-    (1..8).each do |rank|
+    (1..N).each do |rank|
       push_with_block(stack, rank) {|s| queens(s, n+1) if valid?(s) }
     end
   end

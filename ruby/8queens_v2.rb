@@ -1,5 +1,7 @@
 require 'pp'
 
+N = 11
+
 class Array
   alias_method :orig_push, :push
   def push obj
@@ -20,10 +22,10 @@ def valid? stack
 end
 
 def queens stack, n
-  if n == 8
+  if n == N
     #pp stack
   else
-    (1..8).each do |rank|
+    (1..N).each do |rank|
       stack.push(rank) {|s| queens(s, n+1) if valid?(s) }
     end
   end
