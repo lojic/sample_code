@@ -1,10 +1,41 @@
+(* This program will produce an ordered set of potential seats given a
+   list of previously occupied seats and an auditorium layout. Seats
+   are ordered so as to be "furthest" from all previously occupied
+   seats.
+
+   For example, given the auditorium layout below showing the virtual
+   border seats as X and reserved actual seats as R and the two
+   previous seat choices of 2-2-R and 4-5-L as *, the program would
+   choose the best candidate seat as 2-9-R shown as S.
+
+
+   |    |   | S1 | S1 | S2 | S2 | S3 | S3 | S4 | S4 |   |
+   |    | 0 | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9 |
+   |----+---+----+----+----+----+----+----+----+----+---|
+   |  0 | X | X  | X  | X  | X  | X  | X  | X  | X  | X |
+   |  1 | X | R  | R  |    |    |    |    |    |    | X |
+   |  2 | X |    |    |    | *  |    |    |    |    | X |
+   |  3 | X |    |    |    |    |    |    |    |    | X |
+   |  4 | X |    |    |    |    |    |    |    |    | X |
+   |  5 | X |    |    |    |    |    |    | *  |    | X |
+   |  6 | X |    |    |    |    |    |    |    |    | X |
+   |  7 | X |    |    |    |    |    |    |    |    | X |
+   |  8 | X |    |    |    |    |    |    |    |    | X |
+   |  9 | X |    |    |    | S  |    |    |    |    | X |
+   | 10 | X |    |    |    |    |    |    |    |    | X |
+   | 11 | X |    |    |    |    |    |    |    |    | X |
+   | 12 | X |    |    | R  | R  |    |    |    |    | X |
+   | 13 | X | R  | R  | R  | R  |    |    | R  | R  | X |
+   | 14 | X | X  | X  | X  | X  | X  | X  | X  | X  | X |
+   |----+---+----+----+----+----+----+----+----+----+---|   *)
+
 open List
 
 (* Position within a single row - left or right *)
 datatype position = L | R
 
 val gravity      = 1.0
-val low_gravity  = 0.070078125
+val low_gravity  = 0.070078125 (* Empirically determined to give "good" results *)
 val numCols      = 8
 val numPositions = 2
 val numRows      = 13
@@ -135,8 +166,14 @@ fun candidates pastSeats =
                           (map (fn (r,c) => (r,c,low_gravity)) (reservedSeats()))
       val evaluated     = map (fn (r,c) => ((r,c), sumDist (r,c) gravitySeats)) emptySeats
       val orderedSeats  = qsort isLess evaluated
+      fun format((r,c),g) = 
+          let 
+            val (s,r,p) = coordToSeat (r,c)
+          in 
+            (s,r,p,g)
+          end
     in 
-      map (fn ((r,c),_) => coordToSeat (r,c)) orderedSeats
+      map format orderedSeats
     end
 
 val result = candidates pastSeats
