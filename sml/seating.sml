@@ -1,5 +1,6 @@
 open List
 
+(* Position within a single row - left or right *)
 datatype position = L | R
 
 val gravity      = 1.0
@@ -70,11 +71,11 @@ fun sumDist (r,c) [] = 0.0
    for allowing modeling of peripheral "gravity" *)
 fun reservedSeats() =
     let 
-      val lastSeat        = (1,4)
+      val lastSeat        = (1,4) (* Reserve until only remaining seat *)
       val micVettingSeats = [ (1,1),(1,2) ]
-      val section1Missing = [ (13,1),(13,2) ]
-      val section2Missing = [ (12,3),(12,4),(13,3),(13,4) ]
-      val section4Missing = [ (13,7),(13,8) ]
+      val section1Missing = [ (13,1),(13,2) ] (* Section 1 has 12 rows *)
+      val section2Missing = [ (12,3),(12,4),(13,3),(13,4) ] (* Section 2 has 11 rows *)
+      val section4Missing = [ (13,7),(13,8) ] (* Section 4 has 12 rows *)
       val topBorder       = (map (fn i => (0,i)) (upto(0,9)))
       val rightBorder     = (map (fn i => (14,i)) (upto(0,9)))
       val bottomBorder    = (map (fn i => (i,9)) (upto(1,13)))
@@ -125,14 +126,15 @@ val pastSeats = [
 fun candidates pastSeats =
     let 
       val occupiedSeats = map seatToCoord pastSeats
-      val allSeats = map (fn e => (hd e, hd (tl e))) 
-                         (cartesian [ upto(1,numRows), upto(1,numCols) ])
-      val emptySeats = filter (fn e => not (elem e occupiedSeats orelse elem e (reservedSeats())))
-                              allSeats
-      val gravitySeats = (map (fn (r,c) => (r,c,gravity)) occupiedSeats) @ 
-                         (map (fn (r,c) => (r,c,low_gravity)) (reservedSeats()))
-      val evaluated = map (fn (r,c) => ((r,c), sumDist (r,c) gravitySeats)) emptySeats
-      val orderedSeats = qsort isLess evaluated
+      val allSeats      = map (fn e => (hd e, hd (tl e))) 
+                              (cartesian [ upto(1,numRows), upto(1,numCols) ])
+      val emptySeats    = filter 
+                            (fn e => not (elem e occupiedSeats orelse elem e (reservedSeats())))
+                            allSeats
+      val gravitySeats  = (map (fn (r,c) => (r,c,gravity)) occupiedSeats) @ 
+                          (map (fn (r,c) => (r,c,low_gravity)) (reservedSeats()))
+      val evaluated     = map (fn (r,c) => ((r,c), sumDist (r,c) gravitySeats)) emptySeats
+      val orderedSeats  = qsort isLess evaluated
     in 
       map (fn ((r,c),_) => coordToSeat (r,c)) orderedSeats
     end
