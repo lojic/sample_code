@@ -6,9 +6,7 @@ def words text
 end
 
 def train features
-  model = Hash.new(1)
-  features.each {|f| model[f] += 1 }
-  return model
+  features.inject(Hash.new(1)) {|model,f| model[f] += 1; model }
 end
 
 NWORDS = train(words(File.new('holmes.txt').read))
