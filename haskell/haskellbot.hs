@@ -163,7 +163,7 @@ escapeHistoryLine (x:xs) | x == '<' = "&lt;" ++ escapeHistoryLine xs
 eval :: String -> String -> Net ()
 eval  user "!help" = do
   msg user "Help info:"
-  msg user "History: http://veterinarymls.com/trinomad.txt"
+  msg user "History: http://veterinarymls.com/trinomad.html"
   msg user ("/msg " ++ nick ++ " !history    # Display history")
   msg user ("/msg " ++ nick ++ " !history 1  # Display most recent history line")
   msg user "!uptime  # Display bot uptime"
