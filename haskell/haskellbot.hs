@@ -160,8 +160,10 @@ writeToFile s = if isHistMsg s
       hPutStrLn outh (escapeHistoryLine ((show now) ++ ": " ++ s))
       hClose outh
     formatHistoryLine s
-      | "\001ACTION" `isPrefixOf` s = '*' : (init (drop 7 s))
-      | otherwise = s
+      | length matches == 1 = '*' : head matches
+      | otherwise           = s
+      where
+        (_,_,_,matches) = (s =~ "^\001ACTION(.*)\001$" :: (String,String,String,[String]))
 
 escapeHistoryLine :: String -> String
 escapeHistoryLine []       = []
