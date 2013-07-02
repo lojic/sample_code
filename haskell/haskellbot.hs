@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-{- 
+{-
 This code started from the "Roll your own IRC bot" article by Don
 Stewart on haskell.org:
 http://www.haskell.org/haskellwiki/Roll_your_own_IRC_bot
@@ -27,7 +27,7 @@ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
 NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -}
 
 {-
@@ -38,6 +38,13 @@ sudo cabal install regex-compat
 sudo cabal install network
 -}
 
+{-
+TODO
+Detect netsplits. This might help:
+http://www.emacswiki.org/emacs/ErcNetsplit
+-}
+
+import Data.Char
 import Data.List
 import Network
 import System.IO
@@ -60,7 +67,7 @@ import Text.Regex.Posix
   nick   = "haskellbot"
   histFile = "trinomad.html"
 -}
- 
+
 server = "irc.freenode.org"
 port   = 6667
 chan   = "##TriNomad"
@@ -69,7 +76,7 @@ histFile = "/home/deploy/vmls/current/public/trinomad.html"
 
 hist   = 20
 pat    = "^:([^!]+)!.*PRIVMSG[^:]+:(.*)$"
- 
+
 -- The 'Net' monad stack, a wrapper over IO, carrying the bot's immutable
 -- environment (BotEnv) and its mutable state (BotState).
 newtype Net r = Net { unNet :: StateT BotState (ReaderT BotEnv IO) r }
@@ -96,7 +103,7 @@ main = bracket start end loop >>= (const $ return ())
     loop t@(e, s) = catch
                       (runNet e s run >>= (\ (_, s') -> return (e, s')))
                       (const $ return t :: IOException -> IO (BotEnv, BotState))
- 
+
 -- Connect to the server and return the bot environment
 connect :: IO BotEnv
 connect = notify $ do
@@ -109,7 +116,7 @@ connect = notify $ do
         (printf "Connecting to %s ... " server >> hFlush stdout)
         (putStrLn "done.")
         a
- 
+
 -- We're in the Net monad now, so we've connected successfully
 -- Join a channel, and start processing commands
 run :: Net ()
@@ -118,13 +125,13 @@ run = do
     write "USER" (nick++" 0 * :tutorial bot")
     write "JOIN" chan
     asks socket >>= listen
-    
+
 modifyHistory :: String -> BotState -> BotState
 modifyHistory s st = if isHistMsg s then take hist (s:st)
                      else st
 
 isHistMsg x = (x =~ "^:.*!.*PRIVMSG.*:[^!]" :: Bool)
- 
+
 -- Process each line from the server
 listen :: Handle -> Net ()
 listen h = forever $ do
@@ -143,8 +150,8 @@ user      = drop 1 . takeWhile (/= '!')
 
 -- Write line to file if history line
 writeToFile :: String -> Net ()
-writeToFile s = if isHistMsg s 
-                then io (writeLine ((user s) ++ ": " ++ (clean s))) 
+writeToFile s = if isHistMsg s
+                then io (writeLine ((user s) ++ ": " ++ (formatHistoryLine (clean s))))
                 else return ()
   where
     writeLine s = do
@@ -152,13 +159,16 @@ writeToFile s = if isHistMsg s
       outh <- openFile histFile AppendMode
       hPutStrLn outh (escapeHistoryLine ((show now) ++ ": " ++ s))
       hClose outh
-             
+    formatHistoryLine s
+      | "\001ACTION" `isPrefixOf` s = '*' : (init (drop 7 s))
+      | otherwise = s
+
 escapeHistoryLine :: String -> String
 escapeHistoryLine []       = []
 escapeHistoryLine (x:xs) | x == '<' = "&lt;" ++ escapeHistoryLine xs
                          | x == '>' = "&gt;" ++ escapeHistoryLine xs
                          | otherwise = x : escapeHistoryLine xs
- 
+
 -- Dispatch a command
 eval :: String -> String -> Net ()
 eval  user "!help" = do
@@ -193,14 +203,14 @@ dumpHistory user (x:xs) delay = do
     io $ threadDelay delay
     dumpHistory user xs (delay + delta)
   where delta = 100000
-  
+
 dumpLine :: String -> String -> Net ()
 dumpLine user line = do
     if length matches == 2 then msg user ((matches !! 0) ++ ": " ++ (matches !! 1))
     else return ()
   where
     (_,_,_,matches) = (line =~ pat :: (String,String,String,[String]))
-    
+
 uptime :: Net String
 uptime = do
        now <- io getClockTime
@@ -219,7 +229,7 @@ pretty td =
         metrics = [(86400,"d"),(3600,"h"),(60,"m"),(1,"s")]
         diffs = filter ((/= 0) . fst) $ reverse $ snd $
                 foldl' merge (tdSec td,[]) metrics
- 
+
 -- Send a privmsg to the current chan + server
 privmsg :: String -> Net ()
 privmsg s = write "PRIVMSG" (chan ++ " :" ++ s)
@@ -227,14 +237,14 @@ privmsg s = write "PRIVMSG" (chan ++ " :" ++ s)
 -- Direct message
 msg :: String -> String -> Net ()
 msg user s = write "PRIVMSG" (user ++ " :" ++ s)
- 
+
 -- Send a message out to the server we're currently connected to
 write :: String -> String -> Net ()
 write s t = do
     h <- asks socket
     io $ hPrintf h "%s %s\r\n" s t
     io $ printf    "> %s %s\n" s t
- 
+
 -- Convenience.
 io :: IO a -> Net a
 io = liftIO
