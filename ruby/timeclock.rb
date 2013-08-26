@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# Copyright 2007-2009 Brian Adkins all rights reserved
+# Copyright 2007-2013 Brian Adkins all rights reserved
 #
 # = Name
 # timeclock.rb
@@ -10,13 +10,14 @@
 #
 # = Usage
 # ruby timeclock.rb [OPTION] [regex] < emacs_timelog
-#   [ -h | --help ]
 #   [ -b | --begin-date DATE ]
 #   [ -e | --end-date DATE ]
-#   [ -s | --statistics ]
-#   [ -v | --invert-match ]
-#   [ -t | --today-only ]
 #   [ -g | --group LEVELS ]
+#   [ -h | --help ]
+#   [ -s | --statistics ]
+#   [ -t | --today-only ]
+#   [ -v | --invert-match ]
+#   [ -w | --week [DATE] ]
 #
 # = Help
 # help::
@@ -38,6 +39,13 @@
 # group:
 #   Specify the number of grouping levels for computing statistics. A group
 #   levels > 1 implies --statistics
+# week:
+#   Report on weekly statistics.
+#     Implies:
+#       --begin-date
+#       --end-date
+#       --statistics
+#       --group 1
 #
 # = Author
 # Brian Adkins
@@ -47,6 +55,8 @@
 
 require 'optparse'
 require 'date'
+require 'json'
+require 'pp'
 
 TimeEntry = Struct.new(:is_start, :time, :description)
 TimePair  = Struct.new(:start, :end)
@@ -102,7 +112,7 @@ end
 # (assumes pair within same day)
 #------------------------------------------------------------------------
 def hours_interval pair
-  [pair.start.time, pair.end.time].map {|t| t.hour + t.min / 60.0 }
+  [pair.start.time, pair.end.time].map {|t| t.hour + t.min / 60.0 + t.sec / 3600.0 }
 end
 
 #------------------------------------------------------------------------
@@ -259,13 +269,13 @@ def print_report days, options
         group_hours.delete('')
         daily_sum = 0.0
         group_hours.sort.each do |key, value|
-          puts "%4.1f %s" % [value, key]
+          puts "%5.2f %s" % [value, key]
           daily_sum += value
         end
       else
         daily_sum = group_hours['']
       end
-      puts "%4.1f Daily Total" % daily_sum
+      puts "%5.2f Daily Total" % daily_sum
       day.group_hours = group_hours
     end
     puts
@@ -286,15 +296,20 @@ def split_time_pair pair
   ]
 end
 
+def beginning_of_week d
+  d.monday? ? d : beginning_of_week(d-1)
+end
+
 #------------------------------------------------------------------------
 # Handle command line arguments
 #------------------------------------------------------------------------
 options = {
-  :begin_date => DateTime.parse("2000-01-01", true),
-  :end_date => DateTime.parse("2050-01-01", true),
-  :statistics => false,
+  :begin_date   => DateTime.parse("2000-01-01", true),
+  :end_date     => DateTime.parse("2050-01-01", true),
+  :statistics   => false,
   :invert_match => false,
-  :group_levels => 0
+  :group_levels => 0,
+  :week_date    => beginning_of_week(DateTime.parse(Date.today.to_s)),
 }
 opts = OptionParser.new
 opts.on("-h", "--help")            { puts opts; exit }
@@ -308,6 +323,14 @@ end
 opts.on("-g", "--group LEVELS") do |levels|
   options[:group_levels] = levels.to_i
   options[:statistics] = true if options[:group_levels] > 0
+end
+opts.on("-w", "--week [DATE]") do |d|
+  options[:week_date]    = DateTime.parse(d, true) if d
+  options[:begin_date]   = options[:week_date]
+  options[:end_date]     = options[:week_date] + 7
+  options[:week_stats]   = true
+  options[:statistics]   = true
+  options[:group_levels] = 1
 end
 rest = opts.parse(ARGV) rescue RDoc::usage('usage')
 
@@ -323,7 +346,6 @@ days = parse_days(entries)
 # Print a report and accumulate group stats
 group_stats = print_report(days, options)
 
-
 if options[:statistics]
   puts 'Daily Hours'
   puts '-----------'
@@ -335,10 +357,10 @@ if options[:statistics]
       group_hours[key] = (group_hours[key] || 0.0) + value
       daily_sum += value
     end
-    puts "%2d/%02.2d/%d: %4.1f" % [day[:mon], day[:day], day[:year], daily_sum]
+    puts "%2d/%02.2d/%d: %5.2f" % [day[:mon], day[:day], day[:year], daily_sum]
     total_sum += daily_sum
   end
-  puts "Total      %5.1f" % total_sum
+  puts "Total      %6.2f" % total_sum
 
   puts
   puts 'Category Totals'
@@ -347,22 +369,67 @@ if options[:statistics]
     group_hours.delete('')
     sum = 0.0
     group_hours.sort.each do |key, value|
-      puts "%5.1f (%5.1f %%) %s" % [value, (value / total_sum * 100.0), key]
+      puts "%5.2f (%5.1f %%) %s" % [value, (value / total_sum * 100.0), key]
       sum += value
     end
   else
     sum = group_hours['']
   end
   raise 'calculation error' if (sum - total_sum).abs > 0.0001
-  puts "%5.1f Total hours" % sum
+  puts "%5.2f Total hours" % sum
 
   if group_hours.length > 1
     puts
     puts 'Most Time Spent'
     puts "---------------"
+    sum = 0.0
     group_hours.sort {|a,b| b[1] <=> a[1] }.each do |key, value|
-      puts "%5.1f (%5.1f %%) %s" % [value, (value / total_sum * 100.0), key]
+      puts "%5.2f (%5.1f %%) %s" % [value, (value / total_sum * 100.0), key]
       sum += value
     end
+  end
+  puts "%5.2f Total hours" % sum
+end
+
+if options[:week_stats]
+  # Config file to specify weekly hours allocation per client is of the form:
+  # {
+  #   "Client A" : 20.0,
+  #   "Client B" : 20.0
+  # }
+  allocations = JSON.parse(IO.read("/Users/badkins/sync/business/hours_allocation.json"))
+
+  puts ''
+  puts 'Week Stats'
+  puts '----------'
+  sum = {}
+  group_hours = {}
+
+  days.each do |day|
+    day.group_hours.each do |key,value|
+      group_hours[key] = (group_hours[key] || 0.0) + value
+    end
+  end
+
+  company_hours = []
+
+  group_hours.each do |key,value|
+    allocated = allocations[key]
+    company_hours << [
+                      key,
+                      value,
+                      allocated ? (value / allocations[key]) * 100.0 : 0.0
+                     ]
+  end
+
+  company_hours.sort {|a,b| a[2] <=> b[2] }.each do |pair|
+    puts "( %6.2f %% ) %5.2f #{pair[0]}" % [ pair[2], pair[1] ]
+  end
+  puts "Total allocated hours: #{allocations.inject(0.0) {|memo,pair| memo + pair[1]} }"
+
+  puts ''
+  group_hours.map {|k,v| k }.select {|k| !allocations[k] }.each do |k|
+    puts "WARNING: no allocation found for #{k}"
+    puts ''
   end
 end
