@@ -62,6 +62,17 @@ TimeEntry = Struct.new(:is_start, :time, :description)
 TimePair  = Struct.new(:start, :end)
 TimeDay   = Struct.new(:mon, :day, :year, :pairs, :group_hours)
 
+# Config file is of the form:
+# {
+#   "day_starts" : "8:00",
+#   "hours" : {
+#     "Client A" : 20.0,      # Hours per week for Client A
+#     "Client B" : 20.0,
+#     ...
+#   }
+# }
+CONFIG = JSON.parse(IO.read("/Users/badkins/sync/business/timeclock.json"))
+
 #------------------------------------------------------------------------
 # Compute a grouping key from the time description based on the
 # specified levels. For example, if the description was the following:
@@ -300,6 +311,25 @@ def beginning_of_week d
   d.monday? ? d : beginning_of_week(d-1)
 end
 
+def min a, b
+  a < b ? a : b
+end
+
+def expected_hours total, allocated
+  wday = Date.today.wday - 1
+  wday = 6 if wday < 0
+
+  # Compute fraction of week completed
+  t1 = DateTime.parse("#{CONFIG['day_starts']} #{Time.now.zone}").to_time
+  t2 = Time.now
+
+  daily = allocated / 6.0
+
+  percent_of_day = (t2-t1) / ((t1 + ((daily / 0.80) * 3600).to_i) - t1)
+
+  (wday * daily) + min(daily, percent_of_day * daily)
+end
+
 #------------------------------------------------------------------------
 # Handle command line arguments
 #------------------------------------------------------------------------
@@ -392,13 +422,6 @@ if options[:statistics]
 end
 
 if options[:week_stats]
-  # Config file to specify weekly hours allocation per client is of the form:
-  # {
-  #   "Client A" : 20.0,
-  #   "Client B" : 20.0
-  # }
-  allocations = JSON.parse(IO.read("/Users/badkins/sync/business/hours_allocation.json"))
-
   puts ''
   puts 'Week Stats'
   puts '----------'
@@ -411,7 +434,9 @@ if options[:week_stats]
     end
   end
 
+  allocations = CONFIG['hours']
   company_hours = []
+  total_hours = 0.0
 
   group_hours.each do |key,value|
     allocated = allocations[key]
@@ -420,12 +445,29 @@ if options[:week_stats]
                       value,
                       allocated ? (value / allocations[key]) * 100.0 : 0.0
                      ]
+    total_hours += value
+  end
+
+  # First print records for companies with allocations but no time
+  allocations.each do |k,v|
+    puts "( %6.2f %% ) %5.2f / %5.2f #{k}" % [ 0.0, 0.0, v ] if
+      !company_hours.map {|e| e[0]}.include?(k)
   end
 
   company_hours.sort {|a,b| a[2] <=> b[2] }.each do |pair|
-    puts "( %6.2f %% ) %5.2f #{pair[0]}" % [ pair[2], pair[1] ]
+    puts "( %6.2f %% ) %5.2f / %5.2f #{pair[0]}" % [ pair[2], pair[1], allocations[pair[0]] ]
   end
-  puts "Total allocated hours: #{allocations.inject(0.0) {|memo,pair| memo + pair[1]} }"
+  puts ''
+  total_allocated = allocations.inject(0.0) {|memo,pair| memo + pair[1]}
+  puts "( %6.2f %% ) %5.2f / %5.2f Total" % [ total_hours / total_allocated * 100.0, total_hours, total_allocated ]
+
+  puts ''
+  expected = expected_hours(total_hours, total_allocated)
+  if expected > total_hours
+    puts "Behind %.1f hours" % (expected - total_hours)
+  else
+    puts "Ahead %.1f hours" % (total_hours - expected)
+  end
 
   puts ''
   group_hours.map {|k,v| k }.select {|k| !allocations[k] }.each do |k|
