@@ -145,8 +145,10 @@ listen h = forever $ do
     ping x    = "PING :" `isPrefixOf` x
     pong x    = write "PONG" (':' : drop 6 x)
 
-clean s = head matches
-  where (_,_,_,matches) = (s =~ "^:.*PRIVMSG[^:]+:(.+)$" :: (String,String,String,[String]))
+clean s
+  | length matches == 1 = head matches
+  | otherwise          = s
+  where (_,_,_,matches) = (s =~ "^:.* [A-Z]+ [^:]+:(.+)$" :: (String,String,String,[String]))
 
 user = drop 1 . takeWhile (/= '!')
 
