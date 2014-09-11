@@ -145,8 +145,10 @@ listen h = forever $ do
     ping x    = "PING :" `isPrefixOf` x
     pong x    = write "PONG" (':' : drop 6 x)
 
-clean     = drop 1 . dropWhile (/= ':') . drop 1
-user      = drop 1 . takeWhile (/= '!')
+clean s = head matches
+  where (_,_,_,matches) = (s =~ "^:.*PRIVMSG[^:]+:(.+)$" :: (String,String,String,[String]))
+
+user = drop 1 . takeWhile (/= '!')
 
 -- Write line to file if history line
 writeToFile :: String -> Net ()
