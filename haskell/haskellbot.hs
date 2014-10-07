@@ -148,7 +148,7 @@ listen h = forever $ do
 clean s
   | length matches == 1 = head matches
   | otherwise          = s
-  where (_,_,_,matches) = (s =~ "^:.* [A-Z]+ [^:]+:(.+)$" :: (String,String,String,[String]))
+  where (_,_,_,matches) = (s =~ "^:.* PRIVMSG [^:]+:(.+)$" :: (String,String,String,[String]))
 
 user = drop 1 . takeWhile (/= '!')
 
