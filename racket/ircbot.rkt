@@ -31,24 +31,14 @@
 
 ; https://tools.ietf.org/html/rfc2812
 
-;  :badkins!~badkins@adsl-070-154-097-089.sip.rmo.bellsouth.net PRIVMSG #GospelSoftware :command
-;  :badkins!~badkins@adsl-070-154-097-089.sip.rmo.bellsouth.net PRIVMSG RacketBot8 :this is a direct msg
-;  PING :hobana.freenode.net
-;  :badkins!~badkins@adsl-070-154-097-089.sip.rmo.bellsouth.net PRIVMSG #GospelSoftware :!uptime
-;  :badkins!~badkins@cpe-107-15-212-104.nc.res.rr.com PART ##trinomad
-;  :badkins!~badkins@cpe-107-15-212-104.nc.res.rr.com JOIN ##trinomad
-;  :atomgian_!~atomgiant@2606:a000:4422:de00:c98b:4fcf:3be9:efc0 NICK :atomgiant
-
 (require racket/tcp)
 (require racket/string)
 (require racket/match)
 (require racket/format)
 (require racket/date)
 
-(define chan            "#GospelSoftware")
-;(define chan            "##trinomad")
-;(define histfile        "/home/deploy/vmls/current/public/trinomad.html")
-(define histfile        "trinomad.html")
+(define chan            "##trinomad")
+(define histfile        "/home/deploy/vmls/current/public/trinomad.html")
 (define logfile         "ircbot.log")
 (define nick            "RacketBot1c")
 (define port            6667)
