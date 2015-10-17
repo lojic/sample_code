@@ -145,10 +145,11 @@ listen h = forever $ do
     ping x    = "PING :" `isPrefixOf` x
     pong x    = write "PONG" (':' : drop 6 x)
 
+-- Text.Regex.Posix doesn't have non-greedy, so the .*? doesn't work
 clean s
   | length matches == 1 = head matches
   | otherwise          = s
-  where (_,_,_,matches) = (s =~ "^:.* PRIVMSG [^:]+:(.+)$" :: (String,String,String,[String]))
+  where (_,_,_,matches) = (s =~ "^:.*? PRIVMSG [^:]+:(.+)$" :: (String,String,String,[String]))
 
 user = drop 1 . takeWhile (/= '!')
 

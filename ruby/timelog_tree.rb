@@ -1,4 +1,4 @@
-#!/usr/local/bin/ruby
+#!/Users/badkins/.rvm/rubies/ruby-2.1.2/bin/ruby
 PREFIX_LEN = '  '
 
 def each_description file
