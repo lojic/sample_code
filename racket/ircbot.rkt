@@ -37,14 +37,14 @@
 (require racket/format)
 (require racket/date)
 
-(define chan            "##trinomad")
-(define histfile        "/home/deploy/vmls/current/public/trinomad.html")
+(define chan            "#triangledevs")
+(define histfile        "/home/deploy/public/triangledevs.html")
 (define logfile         "ircbot.log")
-(define nick            "RacketBot1c")
+(define nick            "RacketBot1d")
 (define port            6667)
 (define server          "irc.freenode.org")
 (define start-seconds   (current-seconds))
-(define current-version "0.0.2")
+(define current-version "0.0.3")
 
 (struct context (c-in c-out hist-out log-out))
 
