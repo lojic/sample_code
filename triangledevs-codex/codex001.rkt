@@ -4,8 +4,10 @@
 (define dict (for/hash ([ word (file->lines "./dictionary.txt") ])
                (values word #t)))
 
-;; (password-strength str) -> (cons symbol? (or/c string? #f))
-;; str : string?
+;; (password-strength username password dictionary-word?) -> (cons symbol? (or/c string? #f))
+;; username : string?
+;; password : string?
+;; dictionary-word? : (string? -> boolean?)
 ;;
 ;; Returns two values, a symbol indicating the strength of the
 ;; password, and an optional error message which will be #f if no
@@ -112,7 +114,7 @@
       (substring str beg end))))
 
 ;; Benchmark
-#;(time
+(time
  (let ([ lookup? (λ (word) (hash-ref dict word #f)) ])
    (let loop ([n 100000])
      (when (> n 0)
@@ -176,11 +178,24 @@
   (check-equal? (character-set-size "Open-Sesame") 84)
   (check-equal? (entropy-bits "Open-Sesame") 71)
 
+  ;; failed-password? -------------------------------------------------------------------------
+  (let ([ lookup? (λ (word) (hash-ref dict word #f)) ])
+    (let ([ pswd "Pswd1" ])
+      (check-equal? (failed-password? "jsmith" pswd (entropy-bits pswd) lookup?)
+                    "Entropy bits (30) < 48"))
+
+    (let ([ pswd "FgKMsFqEjsmithZ4UIMw7pkmT4e4" ])
+      (check-equal? (failed-password? "jsmith" pswd (entropy-bits pswd) lookup?)
+                    "Contains username (jsmith); Contains dictionary words: mit, smit, smith"))
+
+    (let ([ pswd "abate" ])
+      (check-equal? (failed-password? "jsmith" pswd (entropy-bits pswd) lookup?)
+                    "Entropy bits (24) < 48; Contains dictionary words: abate, ate, bat, bate")))
+
   ;; sub-words --------------------------------------------------------------------------------
   (for ([ pair (in-list '( (("abc" 3) ("abc"))
                            (("abc" 2) ("ab" "abc" "bc"))
                            (("abcde" 3) ("abc" "abcd" "abcde" "bcd" "bcde" "cde"))
-                           (("abc" 4) ())
-                           )) ])
+                           (("abc" 4) ()))) ])
     (check-equal? (apply sub-words (first pair)) (second pair)))
   )
