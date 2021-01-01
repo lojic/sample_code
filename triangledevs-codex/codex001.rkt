@@ -78,17 +78,11 @@
           #f))
 
     (define (check-dictionary) ; May not contain any dictionary words of length 3+
-      (let loop ([ words (sub-words pswd 3) ][ dwords '() ])
-        (if (null? words)
-            (if (null? dwords)
-                #f
-                (format "Contains dictionary words: ~a"
-                        (string-join (sort dwords string<?) ", ")))
-            (loop (cdr words)
-                  (let ([ word (car words) ])
-                    (if (dictionary-word? word)
-                        (cons word dwords)
-                        dwords))))))
+      (let ([ dwords (for/list ([ word (in-list (sub-words pswd 3)) ] #:when (dictionary-word? word))
+                       word) ])
+        (if (null? dwords)
+            #f
+            (format "Contains dictionary words: ~a" (string-join (sort dwords string<?) ", ")))))
     ;; ----------------------------------------------------------------------------------------
 
   (let ([ errors (filter identity (list (check-entropy)
@@ -114,7 +108,7 @@
       (substring str beg end))))
 
 ;; Benchmark
-(time
+#;(time
  (let ([ lookup? (λ (word) (hash-ref dict word #f)) ])
    (let loop ([n 100000])
      (when (> n 0)
